@@ -582,12 +582,14 @@ const readScroll = () => { target = Math.min(1, scrollY / Math.max(1, document.d
 addEventListener('scroll', readScroll); readScroll();
 document.getElementById('skip').onclick = () => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
 
-// banners sit side by side on wide screens and stack on tall phone screens so none is cut off
+// banners always sit side by side; on a tall phone screen the camera stops further back (still inside the door) and the row curves toward you
 let bannerScale = K;
 function placeBanners() {
-  const tall = innerWidth / innerHeight < 0.9, rows = [[0, 5.0], [0, 3.45], [0, 1.9]];
+  const tall = innerWidth / innerHeight < 0.9;
   bannerScale = tall ? K * 0.92 : K;
-  meshes.forEach((m, i) => { const [x, y] = tall ? rows[i] : [BANNERS[i].pos[0], BANNERS[i].pos[1]]; m.position.set(x, y, tall ? -4.8 : BANNERS[i].pos[2]); m.lookAt(END_POS); });
+  END_POS.z = tall ? 7.4 : 4.2; posC.points[posC.points.length - 1].copy(END_POS); posC.updateArcLengths();
+  const spots = tall ? [[-3.5, 2.9, -3.4], [0, 3.2, -4.4], [3.5, 2.9, -3.4]] : BANNERS.map((b) => b.pos);
+  meshes.forEach((m, i) => { m.position.set(...spots[i]); m.lookAt(END_POS); });
 }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = Math.min(95, 55 * Math.max(1, 1.5 / camera.aspect)); camera.updateProjectionMatrix(); placeBanners(); }
 addEventListener('resize', resize); resize();
