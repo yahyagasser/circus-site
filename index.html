@@ -8,11 +8,11 @@
   :root { --gold:#f2c14e; --red:#c8202f; --cream:#f4ead5; --ink:#0b0d24; }
   * { box-sizing: border-box; }
   html, body { margin:0; background:var(--ink); color:var(--cream); font-family: Georgia, 'Times New Roman', serif; }
-  #scroll { height: 700vh; }
+  #scroll { height: 300vh; }
   canvas#c { position:fixed; inset:0; width:100%; height:100%; display:block; }
   .hud { position:fixed; left:0; right:0; pointer-events:none; text-align:center; transition:opacity .4s; }
-  #brand { top:16px; font-size:14px; letter-spacing:.35em; color:var(--gold); }
-  #intro { top:10%; }
+  #brand { top:18px; font-size:14px; letter-spacing:.35em; color:var(--gold); opacity:0; }
+  #intro { top:14%; padding:0 12px; }
   #intro h1 { margin:0; font-size:clamp(34px,8vw,84px); letter-spacing:.08em; text-shadow:0 4px 30px #000; }
   #intro p { margin:10px 0 0; letter-spacing:.3em; font-size:13px; color:var(--gold); }
   #hint { bottom:28px; font-size:14px; letter-spacing:.25em; color:var(--gold); opacity:0; }
@@ -20,6 +20,7 @@
     padding:6px 12px; font:inherit; font-size:12px; letter-spacing:.15em; cursor:pointer; border-radius:2px; }
   #mode { position:fixed; left:16px; top:12px; background:none; border:1px solid var(--gold); color:var(--gold); padding:6px 12px; font:inherit; font-size:12px; letter-spacing:.15em; cursor:pointer; border-radius:2px; }
   #mode:hover, #skip:hover { background:var(--gold); color:var(--ink); }
+  @media (max-width:600px) { #brand { top:54px; font-size:12px; letter-spacing:.25em; } #intro { top:18%; } #intro p { letter-spacing:.2em; } #hint { font-size:12px; letter-spacing:.15em; bottom:20px; } #skip, #mode { font-size:11px; padding:5px 9px; } }
   #panel { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px;
     background:rgba(5,6,20,.55); backdrop-filter: blur(3px); }
   #panel[hidden] { display:none; }
@@ -91,7 +92,8 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pol = (r, a) => [r * Math.sin(a), r * Math.cos(a)];   // a = 0 is the door side (+z)
 
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const MOBILE = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 700;   // lighter settings on phones
+renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
@@ -135,7 +137,7 @@ scene.add(orb);
 // ---- lights
 const hemi = new THREE.HemisphereLight(0x8088c0, 0x202030, 0.55); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0x9fb4ff, 1.2); sun.position.set(-60, 110, 60);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
+sun.castShadow = true; sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
 Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 10, far: 260 }); scene.add(sun);
 orb.position.copy(sun.position).normalize().multiplyScalar(250);
 const inner = new THREE.PointLight(0xffd9a0, 70, 30); inner.position.set(0, 5.5, 0); scene.add(inner);
@@ -331,7 +333,7 @@ const windowMats = [], nearLots = [];
   for (let x = -133; x <= 133; x += 14) for (let z = -133; z <= 133; z += 14) {
     if (onRoad(x, z, 7)) continue;
     const px = x + rnd(-0.8, 0.8), pz = z + rnd(-0.8, 0.8), face = Math.abs(x) > Math.abs(z) ? Math.atan2(-Math.sign(x), 0) : Math.atan2(0, -Math.sign(z));
-    if (Math.max(Math.abs(x), Math.abs(z)) <= 80) { nearLots.push([px, pz, face]); continue; }
+    if (Math.max(Math.abs(x), Math.abs(z)) <= (MOBILE ? 60 : 80)) { nearLots.push([px, pz, face]); continue; }
     const w = rnd(9, 13), h = rnd(18, 60), f = facade.clone(), e = glow.clone(); f.needsUpdate = e.needsUpdate = true;
     for (const t of [f, e]) tiled(t, Math.round(w / 4), Math.round(h / 4));
     const m = std({ map: f, emissiveMap: e, emissive: 0xffffff, emissiveIntensity: 1, roughness: 0.9 }); windowMats.push(m);
@@ -392,7 +394,7 @@ let carousel = null;
 
 // buildings from the CC0 Quaternius pack on the near lots; windows glow at night
 {
-  const NAMES = ['2Story_Mat', '2Story_Balcony', '2Story_GableRoof', '3Story_Balcony', '4Story_Mat', '4Story_Center', '6Story_Stack'];
+  const NAMES = ['2Story_Mat', '2Story_Balcony', '4Story_Mat', '4Story_Center', '6Story_Stack'];
   Promise.all(NAMES.map((n) => loadObj(n, 'buildings/', true))).then((models) => {
     for (const [x, z, face] of nearLots) {
       const b = models[Math.floor(Math.random() * models.length)].clone(), sc = rnd(4, 5);
@@ -421,7 +423,7 @@ let peoplePromise = Promise.resolve(null);
     g.userData.legs = legs; return g;
   };
   const spawn = (make) => {
-    for (const [L, rc, n, dir] of [[19, 2, 8, 1], [20.6, 3.6, 8, -1], [38.3, 4.3, 16, 1], [39.7, 5.7, 16, -1]]) {
+    for (const [L, rc, n, dir] of (MOBILE ? [[19, 2, 4, 1], [20.6, 3.6, 4, -1], [38.3, 4.3, 6, 1], [39.7, 5.7, 6, -1]] : [[19, 2, 8, 1], [20.6, 3.6, 8, -1], [38.3, 4.3, 16, 1], [39.7, 5.7, 16, -1]])) {
       for (let i = 0; i < n; i++) {
         const g = make(true); scene.add(g);
         walkers.push({ g, L, rc, dir, s: (i + Math.random() * 0.3) / n * lanePerimeter(L, rc), ph: Math.random() * 6 });   // same speed per lane, so nobody overtakes
@@ -430,7 +432,7 @@ let peoplePromise = Promise.resolve(null);
     for (let i = 0; i < 4; i++) { const g = make(false); g.position.set(-6.2, SLAB, 14.2 + i * 0.9); g.rotation.y = -Math.PI / 2; scene.add(g); }   // ticket queue
   };
   // animated CC0 characters (Quaternius); the simple figures above are the fallback if they fail to load
-  const NAMES = ['Casual_Male', 'Casual_Female', 'Casual3_Male', 'Casual2_Female', 'Suit_Male', 'Suit_Female'];
+  const NAMES = ['Casual_Male', 'Casual2_Female', 'Suit_Male'];
   peoplePromise = Promise.all(NAMES.map((n) => new Promise((res, rej) => new FBXLoader().setPath('assets/people/').load(n + '.fbx', res, undefined, rej)))).then((models) => {
     const SKIN = [0xe0b48c, 0xc68e65, 0x8d5a3c, 0xf0c8a0, 0xa8754f, 0xd9a77c];   // the pack's own skin colour is near-black
     models.forEach((m, k) => m.traverse((o) => {
@@ -473,7 +475,7 @@ const BL = { from: 0.55, len: TAU - 1.1 };
     const SIT = models[0].animations.find((a) => /sitdown/i.test(a.name)), SIT_DROP = 0.45;
     if (!SIT) return;
     seats.forEach(([r, y, a]) => {
-      if (Math.random() > 0.55) return;
+      if (Math.random() > (MOBILE ? 0.3 : 0.55)) return;
       const o = SkeletonUtils.clone(models[Math.floor(Math.random() * models.length)]), g = new THREE.Group(), [x, z] = pol(r, a);
       o.scale.setScalar(rnd(1.68, 1.84) / models.height / K); g.add(o);
       const mixer = new THREE.AnimationMixer(o); mixer.clipAction(SIT).play(); mixer.setTime(SIT.duration);   // frozen in the seated pose
@@ -563,7 +565,7 @@ const meshes = BANNERS.map((b, i) => {
     const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#c8202f'); gr.addColorStop(1, '#7d1019');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
     g.strokeStyle = '#f2c14e'; g.lineWidth = 12; g.strokeRect(10, 10, w - 20, h - 20);
-    g.fillStyle = '#f2c14e'; g.textAlign = 'center'; g.font = 'bold 58px Georgia, serif'; g.fillText(b.title, w / 2, h / 2 + 4);
+    g.fillStyle = '#f2c14e'; g.textAlign = 'center'; g.font = 'bold 50px Georgia, serif'; g.fillText(b.title, w / 2, h / 2 + 4);
     g.fillStyle = '#f4ead5'; g.font = 'italic 30px Georgia, serif'; g.fillText(b.sub, w / 2, h / 2 + 56);
   });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, toneMapped: false }));
@@ -580,7 +582,14 @@ const readScroll = () => { target = Math.min(1, scrollY / Math.max(1, document.d
 addEventListener('scroll', readScroll); readScroll();
 document.getElementById('skip').onclick = () => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
 
-function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = Math.min(95, 55 * Math.max(1, 1.5 / camera.aspect)); camera.updateProjectionMatrix(); }
+// banners sit side by side on wide screens and stack on tall phone screens so none is cut off
+let bannerScale = K;
+function placeBanners() {
+  const tall = innerWidth / innerHeight < 0.9, rows = [[0, 5.0], [0, 3.45], [0, 1.9]];
+  bannerScale = tall ? K * 0.92 : K;
+  meshes.forEach((m, i) => { const [x, y] = tall ? rows[i] : [BANNERS[i].pos[0], BANNERS[i].pos[1]]; m.position.set(x, y, tall ? -4.8 : BANNERS[i].pos[2]); m.lookAt(END_POS); });
+}
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = Math.min(95, 55 * Math.max(1, 1.5 / camera.aspect)); camera.updateProjectionMatrix(); placeBanners(); }
 addEventListener('resize', resize); resize();
 
 // ---- picking
@@ -645,12 +654,13 @@ body.addEventListener('click', (e) => {
 });
 
 // ---- loop
-const hint = document.getElementById('hint'), intro = document.getElementById('intro');
+const brandEl = document.getElementById('brand'), hint = document.getElementById('hint'), intro = document.getElementById('intro');
 const look = new THREE.Vector3(), pos = new THREE.Vector3(), clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1), time = clock.elapsedTime;
   cur += (target - cur) * Math.min(1, dt * 3);
-  posC.getPoint(cur, pos); lookC.getPoint(cur, look);
+  const e = cur * cur * (3 - 2 * cur);   // ease in and out so the move starts and stops softly
+  posC.getPointAt(e, pos); lookC.getPointAt(e, look);
   focusAmt += ((focus ? 1 : 0) - focusAmt) * Math.min(1, dt * 4);
   if (focusAmt > 0.001 && focus) {
     pos.lerp(focus.position.clone().lerp(pos, 0.4), focusAmt);
@@ -658,11 +668,11 @@ renderer.setAnimationLoop(() => {
   }
   camera.position.copy(pos); camera.lookAt(look);
 
-  const inside = cur > 0.82;
+  const inside = cur > 0.88;
   meshes.forEach((m, i) => {
     m.visible = inside;
     m.rotation.z = Math.sin(time * 1.2 + m.userData.phase) * 0.03;
-    m.userData.s += ((m === hover ? 1.1 : 1) * K - m.userData.s) * Math.min(1, dt * 8);
+    m.userData.s += ((m === hover ? 1.1 : 1) * bannerScale - m.userData.s) * Math.min(1, dt * 8);
     m.scale.setScalar(m.userData.s);
   });
   beams.forEach((b, i) => { b.rotation.z = Math.sin(time * 0.7 + i * 2) * 0.12; });
@@ -684,7 +694,7 @@ renderer.setAnimationLoop(() => {
   cars.forEach((c) => {
     c.s += 7 * dt; const [x, z, h] = lanePos(c.dir * c.s, c.L, c.rc); c.g.position.set(x, 0.03, z); c.g.rotation.y = h + (c.dir < 0 ? Math.PI : 0);
   });
-  intro.style.opacity = Math.max(0, 1 - cur * 10);
+  const introA = Math.max(0, 1 - cur * 10); intro.style.opacity = introA; brandEl.style.opacity = 1 - introA;   // brand takes over from the big title, never both
   hint.style.opacity = cur > 0.95 && panel.hidden ? 1 : 0;
   renderer.render(scene, camera);
 });
