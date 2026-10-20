@@ -662,6 +662,7 @@ Total: ${total}`;
     d.innerHTML = `<b>Request ready</b><br>${sel.qty} × ${t.name} ticket(s), ${sel.slot}<br>Total ${total}<br>
       <a class="go wa" href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">SEND ON WHATSAPP</a>
       <small>Nothing is booked until the circus confirms. Or call ${PHONES[0]}.</small>`;
+    d.scrollIntoView({ behavior: 'smooth', block: 'end' });   // on phones the WhatsApp button starts below the fold
     return;
   } else return;
   render();
