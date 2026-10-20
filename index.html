@@ -42,6 +42,9 @@
   .qty button { width:36px; height:36px; font-size:20px; background:#1f2245; border:1px solid #3a3d6b; color:var(--cream); cursor:pointer; border-radius:4px; }
   .total { margin-top:18px; font-size:20px; }
   .go { margin-top:14px; width:100%; padding:14px; font:inherit; letter-spacing:.2em; background:var(--red); color:#fff; border:0; cursor:pointer; border-radius:4px; }
+  .wa { display:block; text-align:center; text-decoration:none; background:#1f8f4e; margin:10px 0 6px; }
+  #cname { width:100%; padding:10px 12px; font:inherit; background:#1f2245; color:var(--cream); border:1px solid #3a3d6b; border-radius:4px; }
+  #done small { color:#a9a6c4; }
   .go:disabled { opacity:.4; cursor:not-allowed; }
   #done { margin-top:14px; padding:12px; border:1px dashed var(--gold); border-radius:4px; }
   .phone { font-size:22px; color:var(--cream); text-decoration:none; display:block; margin:6px 0; }
@@ -75,6 +78,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 // ---- placeholder content: edit here -------------------------------------
 const NAME = 'YOUR CIRCUS NAME';
 const PHONES = ['+20 000 000 0000', '+20 000 000 0001'];
+const WHATSAPP = '200000000000';   // placeholder: the circus's WhatsApp number, digits only with country code
 const ADDRESS = 'Placeholder Street, Giza, Egypt';
 const SLOTS = ['Fri · 7:00 PM', 'Sat · 5:00 PM', 'Sat · 8:30 PM', 'Sun · 5:00 PM', 'Sun · 8:30 PM', 'Mon · 7:00 PM'];
 const TIERS = [
@@ -608,7 +612,7 @@ addEventListener('pointerdown', (e) => { if (!panel.hidden || e.target.tagName =
 
 // ---- panel
 const panel = document.getElementById('panel'), body = document.getElementById('body');
-const sel = { slot: null, tier: null, qty: 1 };
+const sel = { slot: null, tier: null, qty: 1, name: '' };
 const fmt = (n) => `${n} ${CURRENCY}`;
 
 const VIEWS = {
@@ -629,6 +633,7 @@ const VIEWS = {
       <div class="tiers">${TIERS.map((x) => `<button class="tier" data-tier="${x.id}" aria-pressed="${sel.tier === x.id}"><b>${x.name}</b><small>${x.desc}</small><br>${fmt(x.price)}</button>`).join('')}</div>
       <h3>3 · HOW MANY</h3>
       <div class="qty"><button data-q="-1" aria-label="Fewer">&minus;</button><span>${sel.qty}</span><button data-q="1" aria-label="More">+</button></div>
+      <h3>4 · YOUR NAME</h3><input id="cname" type="text" maxlength="60" autocomplete="name" placeholder="Name for the booking" value="${sel.name.replace(/"/g, '')}">
       <div class="total">Total: <b>${t ? fmt(t.price * sel.qty) : '–'}</b></div>
       <button class="go" ${sel.slot && t ? '' : 'disabled'}>REQUEST BOOKING</button><div id="done" hidden></div>`;
   },
@@ -640,16 +645,23 @@ function closePanel() { panel.hidden = true; focus = null; }
 document.getElementById('close').onclick = closePanel;
 panel.addEventListener('pointerdown', (e) => { if (e.target === panel) closePanel(); });
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+body.addEventListener('input', (e) => { if (e.target.id === 'cname') sel.name = e.target.value; });
 body.addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.slot) sel.slot = b.dataset.slot;
   else if (b.dataset.tier) sel.tier = b.dataset.tier;
   else if (b.dataset.q) sel.qty = Math.max(1, Math.min(10, sel.qty + +b.dataset.q));
   else if (b.classList.contains('go')) {
-    const t = TIERS.find((x) => x.id === sel.tier);
+    const t = TIERS.find((x) => x.id === sel.tier), total = fmt(t.price * sel.qty);
+    const msg = `Booking request - ${NAME}
+Name: ${sel.name.trim() || '(not given)'}
+Show: ${sel.slot}
+Tickets: ${sel.qty} x ${t.name} (${t.desc})
+Total: ${total}`;
     const d = document.getElementById('done'); d.hidden = false;
-    d.innerHTML = `<b>Request ready</b><br>${sel.qty} × ${t.name} ticket(s), ${sel.slot}<br>Total ${fmt(t.price * sel.qty)}<br>
-      No payment is taken here. Call ${PHONES[0]} to confirm your seats.`;
+    d.innerHTML = `<b>Request ready</b><br>${sel.qty} × ${t.name} ticket(s), ${sel.slot}<br>Total ${total}<br>
+      <a class="go wa" href="https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">SEND ON WHATSAPP</a>
+      <small>Nothing is booked until the circus confirms. Or call ${PHONES[0]}.</small>`;
     return;
   } else return;
   render();
